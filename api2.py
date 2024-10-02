@@ -17,6 +17,20 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+
+from langchain_community.vectorstores import FAISS
+from langchain_cohere import CohereEmbeddings
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+embeddings = CohereEmbeddings(model="embed-english-light-v3.0")
+
+vector_store = FAISS.load_local(
+    "faiss_index_cohere", embeddings, allow_dangerous_deserialization=True
+)
+retriever = vector_store.as_retriever()
+
 # Initialize FastAPI app
 app = FastAPI(title="AI Chatbot API", description="An API for interacting with an AI chatbot using history.")
 
@@ -63,14 +77,14 @@ def get_session_history(session_id: str) -> InMemoryHistory:
 # ---------------------------
 
 # Fake retriever to simulate document search
-def fake_retriever(query: str):
+def retriever(query: str):
     assert isinstance(query, str)
     return [
         Document(page_content="London is the capital of France"),
         Document(page_content="Rome is the capital of UK"),
     ]
 
-fake_retriever = RunnableLambda(fake_retriever)
+retriever = RunnableLambda(retriever)
 
 # Initialize the Cohere AI model
 model = ChatCohere(model="command-r-plus")
@@ -89,7 +103,7 @@ def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
 # Step 1: Retrieve documents from the query
-context = itemgetter("question") | fake_retriever | format_docs
+context = itemgetter("question") | retriever | format_docs
 
 # Step 2: Build a chain for processing the request
 first_step = RunnablePassthrough.assign(context=context)
@@ -217,4 +231,4 @@ async def chat_endpoint(chat_input: ChatInput):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8888)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
