@@ -1,3 +1,5 @@
 .env
 .DS_Store
 info.txt
+env.sh
+notes.txt
