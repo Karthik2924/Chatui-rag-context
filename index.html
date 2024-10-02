@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT-like UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+        #sidebar {
+            width: 250px;
+            background-color: #f0f0f0;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        #chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat-history {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+        #chat-history p {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+        }
+        #user-input {
+            display: flex;
+            padding: 10px;
+            background-color: #fff;
+        }
+        #user-input input {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #user-input button {
+            margin-left: 10px;
+            padding: 10px 15px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+        }
+        #sidebar button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #sidebar button:hover {
+            background-color: #218838;
+        }
+        #previous-chats {
+            margin-top: 20px;
+        }
+        #previous-chats button {
+            background-color: #007bff;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <button id="new-chat">New Chat</button>
+        <h3>Previous Sessions</h3>
+        <div id="previous-chats"></div>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat-history"></div>
+        <div id="user-input">
+            <input type="text" id="user-message" placeholder="Type your message here...">
+            <button id="send-message">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = null;
+        const chatHistory = document.getElementById('chat-history');
+        const previousChatsContainer = document.getElementById('previous-chats');
+
+        // Load session history from localStorage
+        const loadPreviousSessions = () => {
+            previousChatsContainer.innerHTML = '';
+            const sessions = JSON.parse(localStorage.getItem('sessions')) || [];
+
+            sessions.forEach(session => {
+                const button = document.createElement('button');
+                button.textContent = `Session: ${session}`;
+                button.onclick = () => loadChatSession(session);
+                previousChatsContainer.appendChild(button);
+            });
+        };
+
+        // Load chat session
+        const loadChatSession = (id) => {
+            sessionId = id;
+            chatHistory.innerHTML = `<p>Loaded session: ${sessionId}</p>`;
+            // You can also fetch previous messages if needed.
+        };
+
+        // Generate a new unique session ID
+        const generateSessionId = () => {
+            return 'session-' + Math.random().toString(36).substr(2, 9);
+        };
+
+        // Start a new chat session
+        const startNewChat = () => {
+            sessionId = generateSessionId();
+            chatHistory.innerHTML = `<p>New session started: ${sessionId}</p>`;
+
+            let sessions = JSON.parse(localStorage.getItem('sessions')) || [];
+            sessions.push(sessionId);
+            localStorage.setItem('sessions', JSON.stringify(sessions));
+            loadPreviousSessions();
+        };
+
+        // Send the message to the API
+        const sendMessage = () => {
+            const userMessage = document.getElementById('user-message').value;
+
+            if (!userMessage) return;
+            if (!sessionId) {
+                alert("Please start a new session or load a previous one.");
+                return;
+            }
+
+            chatHistory.innerHTML += `<p><strong>You:</strong> ${userMessage}</p>`;
+            document.getElementById('user-message').value = '';
+
+            fetch('http://127.0.0.1:8000/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    question: userMessage,
+                    ability: 'general'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const botMessage = data.answer;
+                chatHistory.innerHTML += `<p><strong>Bot:</strong> ${botMessage}</p>`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                chatHistory.innerHTML += `<p><strong>Bot:</strong> There was an error.</p>`;
+            });
+        };
+
+        // Event listeners
+        document.getElementById('send-message').addEventListener('click', sendMessage);
+        document.getElementById('new-chat').addEventListener('click', startNewChat);
+        
+        // Load previous sessions on page load
+        loadPreviousSessions();
+    </script>
+
+</body>
+</html>
